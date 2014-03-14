@@ -262,13 +262,13 @@ class AutoPart(commands.autopart.F20_AutoPart):
         doAutoPartition(storage, ksdata)
         sanityCheck(storage)
 
-class Bootloader(commands.bootloader.F19_Bootloader):
+class Bootloader(commands.bootloader.RHEL7_Bootloader):
     def __init__(self, *args, **kwargs):
-        commands.bootloader.F19_Bootloader.__init__(self, *args, **kwargs)
+        commands.bootloader.RHEL7_Bootloader.__init__(self, *args, **kwargs)
         self.location = "mbr"
 
     def parse(self, args):
-        commands.bootloader.F19_Bootloader.parse(self, args)
+        commands.bootloader.RHEL7_Bootloader.parse(self, args)
         if self.location == "partition" and isinstance(get_bootloader(), GRUB2):
             raise KickstartValueError(formatErrorMsg(self.lineno,
                     msg="GRUB2 does not support installation to a partition."))

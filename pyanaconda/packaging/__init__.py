@@ -686,6 +686,9 @@ class PackagePayload(Payload):
     """ A PackagePayload installs a set of packages onto the target system. """
     @property
     def kernelPackages(self):
+        if "kernel" in self.data.packages.excludedList:
+            return []
+
         kernels = ["kernel"]
 
         if isys.isPaeAvailable():
