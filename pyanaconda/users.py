@@ -192,7 +192,7 @@ class Users:
         """
 
         childpid = os.fork()
-        root = kwargs.get("root", "/mnt/sysimage")
+        root = kwargs.get("root", iutil.getSysroot())
 
         if not childpid:
             if not root in ["","/"]:
@@ -258,7 +258,7 @@ class Users:
                         available one is used.
         """
         childpid = os.fork()
-        root = kwargs.get("root", "/mnt/sysimage")
+        root = kwargs.get("root", iutil.getSysroot())
 
         if not childpid:
             if not root in ["","/"]:
@@ -358,12 +358,16 @@ class Users:
         else:
             return False
 
-    def checkUserExists(self, username, root="/mnt/sysimage"):
+    def checkUserExists(self, username, root=None):
         childpid = os.fork()
+        if root is not None:
+            rootval = root
+        else:
+            rootval = iutil.getSysroot()
 
         if not childpid:
-            if not root in ["","/"]:
-                os.chroot(root)
+            if not rootval in ["","/"]:
+                os.chroot(rootval)
                 os.chdir("/")
                 del(os.environ["LIBUSER_CONF"])
 
@@ -387,18 +391,47 @@ class Users:
         else:
             return False
 
-    def setUserPassword(self, username, password, isCrypted, lock, algo=None):
-        user = self.admin.lookupUserByName(username)
-
-        if isCrypted:
-            self.admin.setpassUser(user, password, True)
+    def setUserPassword(self, username, password, isCrypted, lock, algo=None, root=None):
+        childpid = os.fork()
+        if root is not None:
+            rootval = root
         else:
-            self.admin.setpassUser(user, cryptPassword(password, algo=algo), True)
+            rootval = iutil.getSysroot()
 
-        if lock:
-            self.admin.lockUser(user)
+        if not childpid:
+            if not rootval in ["","/"]:
+                os.chroot(rootval)
+                os.chdir("/")
+                del(os.environ["LIBUSER_CONF"])
 
-        self.admin.modifyUser(user)
+            self.admin = libuser.admin()
+            try:
+                user = self.admin.lookupUserByName(username)
 
-    def setRootPassword(self, password, isCrypted=False, isLocked=False, algo=None):
-        return self.setUserPassword("root", password, isCrypted, isLocked, algo)
+                if isCrypted:
+                    self.admin.setpassUser(user, password, True)
+                else:
+                    self.admin.setpassUser(user, cryptPassword(password, algo=algo), True)
+
+                if lock:
+                    self.admin.lockUser(user)
+
+                self.admin.modifyUser(user)
+                os._exit(0)
+            except Exception as e:
+                log.critical("Error when setting user password: %s" % str(e))
+                os._exit(1)
+
+        try:
+            (pid, status) = os.waitpid(childpid, 0)
+        except OSError as e:
+            log.critical("exception from waitpid while creating a user: %s %s" % (e.errno, e.strerror))
+            return False
+
+        if os.WIFEXITED(status) and (os.WEXITSTATUS(status) == 0):
+            return True
+        else:
+            return False
+
+    def setRootPassword(self, password, isCrypted=False, isLocked=False, algo=None, root=None):
+        return self.setUserPassword("root", password, isCrypted, isLocked, algo, root)

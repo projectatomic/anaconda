@@ -1273,6 +1273,10 @@ reposdir=%s
     ### METHODS FOR WORKING WITH PACKAGES
     ###
     @property
+    def supportsPackages(self):
+        return True
+
+    @property
     def packages(self):
         from yum.Errors import RepoError
 

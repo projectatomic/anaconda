@@ -287,7 +287,17 @@ class Hub(GUIObject, common.Hub):
 
     @property
     def continuePossible(self):
-        return len(self._incompleteSpokes) == 0 and len(self._notReadySpokes) == 0 and getattr(self._checker, "success", True)
+        if len(self._incompleteSpokes) > 0:
+            log.info("Incomplete spokes: %r" % (self._incompleteSpokes, ))
+            return False
+        if len(self._notReadySpokes) > 0:
+            log.info("NotReady spokes: %r" % (self._notReadySpokes, ))
+            return False
+        checkSuccess=getattr(self._checker, "success", True)
+        if not checkSuccess:
+            log.info("Checker returned %r" % (checkSuccess, ))
+            return False
+        return True
         
     def _updateContinueButton(self):
         self.continueButton.set_sensitive(self.continuePossible)

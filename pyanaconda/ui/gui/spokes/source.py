@@ -765,7 +765,9 @@ class SourceSpoke(NormalSpoke):
 
     @property
     def showable(self):
-        return not flags.livecdInstall and not self.data.method.method == "liveimg"
+        return (self.payload.supportsPackages
+                and not flags.livecdInstall
+                and not self.data.method.method == "liveimg")
 
     def _mirror_active(self):
         return self._protocolComboBox.get_active() == PROTOCOL_MIRROR

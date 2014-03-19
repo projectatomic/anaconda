@@ -128,6 +128,14 @@ class Payload(object):
         """ Reset the instance, not including ksdata. """
         pass
 
+    @property
+    def handlesBootloaderConfiguration(self):
+        """ Set if the payload requires the bootloader be installed
+        but unconfigured before doing an install of the system.  This
+        is used by the OSTreePayload subclass.
+        """
+        return False
+
     ###
     ### METHODS FOR WORKING WITH REPOSITORIES
     ###
@@ -324,6 +332,10 @@ class Payload(object):
     ###
     ### METHODS FOR WORKING WITH PACKAGES
     ###
+    @property
+    def supportsPackages(self):
+        return False
+
     @property
     def packages(self):
         raise NotImplementedError()

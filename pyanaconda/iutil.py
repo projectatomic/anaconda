@@ -105,6 +105,23 @@ def _run_program(argv, root='/', stdin=None, stdout=None, env_prune=None, log_ou
 
     return (proc.returncode, output_string)
 
+_sysroot = ROOT_PATH
+def setSysroot(path):
+    global _sysroot
+    _sysroot = path
+
+def getSysroot():
+    return _sysroot
+
+def execInSysimageRoot(command, argv, **kwargs):
+    """ Run a command from the installed target root.
+        @param command The command to run
+        @param argv The argument list
+    """
+
+    argv = [command] + argv
+    return _run_program(argv, root=_sysroot, **kwargs)[0]
+
 def execWithRedirect(command, argv, stdin=None, stdout=None,
                      stderr=None, root='/', env_prune=[], log_output=True, binary_output=False):
     """ Run an external program and redirect the output to a file.
@@ -124,8 +141,14 @@ def execWithRedirect(command, argv, stdin=None, stdout=None,
                    % (command, " ".join(argv)))
         return 0
 
+    # Transparently redirect callers requesting root=ROOT_PATH to the
+    # configured system root.
+    target_root = root
+    if target_root == ROOT_PATH:
+        target_root = _sysroot
+
     argv = [command] + argv
-    return _run_program(argv, stdin=stdin, stdout=stdout, root=root, env_prune=env_prune,
+    return _run_program(argv, stdin=stdin, stdout=stdout, root=target_root, env_prune=env_prune,
             log_output=log_output, binary_output=binary_output)[0]
 
 def execWithCapture(command, argv, stdin=None, stderr=None, root='/',
@@ -171,6 +194,12 @@ def execReadlines(command, argv, stdin=None, root='/', env_prune=None):
         for line in iter(out.readline, b''):
             queue.put(line.strip())
         out.close()
+
+    # Transparently redirect callers requesting root=ROOT_PATH to the
+    # configured system root.
+    target_root = root
+    if target_root == ROOT_PATH:
+        target_root = _sysroot
 
     def chroot():
         if root and root != '/':

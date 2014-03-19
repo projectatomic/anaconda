@@ -25,17 +25,26 @@ from blivet import turnOnFilesystems
 from pyanaconda.bootloader import writeBootLoader
 from pyanaconda.progress import progress_report, progressQ
 from pyanaconda.users import createLuserConf, getPassAlgo, Users
+from pyanaconda import iutil
 from pyanaconda import flags
 from pyanaconda import timezone
 from pyanaconda.i18n import _
 from pyanaconda.threads import threadMgr
 import logging
+import blivet
 log = logging.getLogger("anaconda")
 
 def _writeKS(ksdata):
     import os
 
-    path = ROOT_PATH + "/root/anaconda-ks.cfg"
+    roothome = os.path.join(iutil.getSysroot(), "root")
+    if os.path.islink(roothome) and not os.path.isdir(roothome):
+        # In the OSTree case, /root -> /var/roothome, but
+        # it doesn't exist yet.  If we created it here,
+        # we'd need to ensure it was labeled correctly.
+        # Punt on that for now and just stick it in /var.
+        roothome = os.path.join(iutil.getSysroot(), "var")
+    path = os.path.join(roothome, "anaconda-ks.cfg")
 
     # Clear out certain sensitive information that kickstart doesn't have a
     # way of representing encrypted.
@@ -148,7 +157,8 @@ def doInstall(storage, payload, ksdata, instClass):
     payload.preStorage()
 
     turnOnFilesystems(storage, mountOnly=flags.flags.dirInstall)
-    if not flags.flags.livecdInstall and not flags.flags.dirInstall:
+    write_storage_late = flags.flags.livecdInstall or ksdata.ostreesetup.osname
+    if not write_storage_late and not flags.flags.dirInstall:
         storage.write()
 
     # Do packaging.
@@ -171,15 +181,30 @@ def doInstall(storage, payload, ksdata, instClass):
     payload.preInstall(packages=packages, groups=payload.languageGroups())
     payload.install()
 
-    if flags.flags.livecdInstall:
-        storage.write()
-
-    with progress_report(_("Performing post-installation setup tasks")):
-        payload.postInstall()
-
+    if write_storage_late:
+        if iutil.getSysroot() != ROOT_PATH:
+            blivet.targetSysroot = iutil.getSysroot()
+            storage.write()
+            # Now that we have the FS layout in the target,
+            # umount things that were in the legacy sysroot,
+            # and put them in the target root, except for the
+            # physical /
+            storage.umountFilesystems()
+            rootmnt = storage.mountpoints.get('/')
+            rootmnt.setup()
+            # Explicitly mount the root on the physical sysroot
+            rootmnt.format.setup(rootmnt.format.options, chroot=ROOT_PATH)
+            # But everything else goes in the target root
+            storage.mountFilesystems(skipRoot=True)
+        else:
+            storage.write()
+    
     # Do bootloader.
     if not flags.flags.dirInstall and not ksdata.bootloader.disabled:
         with progress_report(_("Installing bootloader")):
             writeBootLoader(storage, payload, instClass, ksdata)
+
+    with progress_report(_("Performing post-installation setup tasks")):
+        payload.postInstall()
 
     progressQ.send_complete()

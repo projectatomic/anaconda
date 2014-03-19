@@ -124,7 +124,10 @@ class Anaconda(object):
             if not klass:
                 from flags import flags
 
-                if flags.livecdInstall:
+                if self.ksdata.ostreesetup:
+                    from pyanaconda.packaging.ostreepayload import OSTreePayload
+                    klass = OSTreePayload
+                elif flags.livecdInstall:
                     from pyanaconda.packaging.livepayload import LiveImagePayload
                     klass = LiveImagePayload
                 elif self.ksdata.method.method == "liveimg":
