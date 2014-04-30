@@ -215,7 +215,9 @@ def doInstall(storage, payload, ksdata, instClass):
             storage.mountFilesystems(skipRoot=True)
         else:
             storage.write()
-    
+
+    payload.preBootloader(storage)
+
     # Do bootloader.
     if willInstallBootloader:
         with progress_report(_("Installing bootloader")):

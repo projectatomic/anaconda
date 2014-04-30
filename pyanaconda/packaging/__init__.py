@@ -147,6 +147,11 @@ class Payload(object):
         """ Reset the instance, not including ksdata. """
         pass
 
+    def preBootloader(self, storage):
+        """Perform any operations necessary after storage has been reset
+        to the target root, but before the bootloader runs."""
+        pass
+
     ###
     ### METHODS FOR WORKING WITH REPOSITORIES
     ###
